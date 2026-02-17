@@ -1,6 +1,18 @@
 # JGB Risk Engine
 
-This repository implements the architecture defined in `architecture.md`.
+A modular, institutional‑grade risk engine for Japanese Government Bonds (JGBs) built around kdb+, Java, and Python.
+
+The design follows the layered architecture described in `architecture.md`, taking into account the project objectives from `claude.md` (fixed‑rate JGBs, yield curve risk, DV01, scenario engine, etc.) and assumes a local kdb+ instance running on `localhost:5000` (see `q/q.md`).
+
+Key features:
+
+- Bond pricing, duration, convexity, DV01 in vectorized q functions
+- Scenario engine supporting parallel shifts (with room for steepener/flattener)
+- Portfolio P&L aggregation based on positions
+- Java orchestrator using LangChain4j to accept natural‑language commands
+- Python RAG service (FastAPI + ChromaDB) for research lookups
+
+Components
 
 ## Components
 
