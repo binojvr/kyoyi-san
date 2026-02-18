@@ -47,12 +47,26 @@ Once running, type commands like `run a 1bp shift` or `apply five basis points` 
 
 ### Python
 
+The Python sidecar provides optional AI/RAG capabilities such as risk explanations, macro interpretations, and scenario narratives. Endpoints are mounted under `/explain-risk`, `/interpret-macro`, and `/narrative-scenario`.
+
 ```sh
 cd python
 python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8001
+```
+
+### Python
+
+The Python sidecar provides optional AI/RAG capabilities such as risk explanations, macro interpretations, and scenario narratives. Endpoints are mounted under `/explain-risk`, `/interpret-macro`, and `/narrative-scenario`.
+
+```sh
+cd python
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8001
 ```
 
 ## Next Steps

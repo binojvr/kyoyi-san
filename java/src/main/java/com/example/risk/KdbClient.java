@@ -8,9 +8,15 @@ public class KdbClient implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(KdbClient.class);
     private K connection;
 
+    /**
+     * Host and port can be supplied via environment variables KDB_HOST/KDB_PORT;
+     * otherwise defaults to localhost:5001 (Phase2 risk data engine).
+     */
     public KdbClient(String host, int port) throws Exception {
-        log.info("Connecting to kdb+ at {}:{}", host, port);
-        connection = new K(host, port);
+        String actualHost = host != null ? host : System.getenv().getOrDefault("KDB_HOST", "localhost");
+        int actualPort = port > 0 ? port : Integer.parseInt(System.getenv().getOrDefault("KDB_PORT", "5001"));
+        log.info("Connecting to kdb+ at {}:{}", actualHost, actualPort);
+        connection = new K(actualHost, actualPort);
     }
 
     public Object query(String q) throws Exception {

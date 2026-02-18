@@ -1,4 +1,5 @@
-fastapi==0.95.1
-uvicorn[standard]==0.21.1
-chromadb==0.4.3
-langchain==0.0.331
+fastapi>=0.95.2
+uvicorn[standard]>=0.21.1
+chromadb>=0.4.3
+langchain>=0.0.331
+qpython==2.0.0  # kdb+ client for Python

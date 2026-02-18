@@ -10,7 +10,8 @@ public class JavaOrchestrator {
     public static void main(String[] args) {
         log.info("Starting JGB Risk Engine orchestrator...");
 
-        try (KdbClient kdb = new KdbClient("localhost", 5000)) {
+        // use defaults configured for Phase2 (port 5001) unless overridden
+        try (KdbClient kdb = new KdbClient(null, -1)) {
             ScenarioScheduler scheduler = new ScenarioScheduler(kdb);
             ScenarioAgent agent = ScenarioAgent.defaultAgent();
 

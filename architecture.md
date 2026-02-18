@@ -84,3 +84,30 @@ flowchart LR
 - Replace REST layer with gRPC streaming for real-time risk updates.
 - Introduce GUI dashboard using React, consuming API layer.
 
+### Phase2 1. kdb+ (Risk Data Engine)
+- Host: localhost
+- Port: 5001
+- Stores:
+  - Yield curve
+  - Bond static data
+  - Portfolio positions
+- Use q-SQL for aggregation
+
+###  Phase2  2. Java (Orchestrator)
+- Pricing requests
+- Scenario engine
+- Portfolio aggregation
+- Use Virtual Threads for parallel risk computation
+
+---
+
+## Phase2  2 (AI Layer – Optional)
+
+### Python Sidecar
+- FastAPI service
+- RAG over research PDFs
+- ChromaDB vector store
+- Provides:
+  - Risk explanation
+  - Macro interpretation
+  - BoJ scenario narrative

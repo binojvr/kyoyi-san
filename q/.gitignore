@@ -1,0 +1,21 @@
+# kdb+ database files
+*.wdb
+*.hdb
+*.seg
+
+# Logs
+q.log
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Backup files
+*.bak
+*~
