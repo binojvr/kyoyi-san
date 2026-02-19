@@ -1,75 +1,134 @@
-# JGB Risk Engine
+# JGB Risk Engine (Kyoyi-san)
 
-A modular, institutional‑grade risk engine for Japanese Government Bonds (JGBs) built around kdb+, Java, and Python.
+A modular, institutional-grade risk engine for Japanese Government Bonds (JGBs) built around kdb+, Java, and Python.
 
-The design follows the layered architecture described in `architecture.md`, taking into account the project objectives from `claude.md` (fixed‑rate JGBs, yield curve risk, DV01, scenario engine, etc.) and assumes a local kdb+ instance running on `localhost:5000` (see `q/q.md`).
+## Architecture
 
-Key features:
+Three-tier design with an AI orchestration layer:
 
-- Bond pricing, duration, convexity, DV01 in vectorized q functions
-- Scenario engine supporting parallel shifts (with room for steepener/flattener)
-- Portfolio P&L aggregation based on positions
-- Java orchestrator using LangChain4j to accept natural‑language commands
-- Python RAG service (FastAPI + ChromaDB) for research lookups
+```
+User (natural language)
+        │
+        ▼
+[Java Orchestrator]  ←  LangChain4j + OpenAI GPT-4
+        │                 parses shift magnitude from text
+        ▼
+[kdb+ Analytics Engine]  ←  in-memory columnar store
+        │                    bond math, scenario P&L
+        ▼
+[Python REST/RAG Service]  ←  FastAPI + ChromaDB
+                               exposes results, macro narratives
+```
 
-Components
+See [architecture.md](architecture.md) for the full layered design.
+
+## Business Logic
+
+All analytics use **Act/365** day count (Japanese market standard).
+
+| Metric | Method |
+|--------|--------|
+| Bond price | PV of annual coupons + face value redemption, discounted at YTM |
+| Macaulay duration | Weighted average time to cashflows |
+| Convexity | Second-order price/yield curvature |
+| DV01 | Finite-difference approximation over 1bp shift |
+| Parallel shift scenario | Uniform Δy applied to all tenors; portfolio repriced |
+| Portfolio P&L | `(newPrice − oldPrice) × quantity` aggregated across positions |
 
 ## Components
 
-- **kdb+ scripts (`q/`)**: table definitions, sample data, analytics functions, scenario runner.
-- **Java orchestrator (`java/`)**: Maven project with a stubbed main class.
-- **Python RAG service (`python/`)**: FastAPI app skeleton with requirements.
+### kdb+ (`q/`)
+
+| File | Purpose |
+|------|---------|
+| `schema.q` | Table definitions: `bonds`, `yields`, `portfolios`, `scenarios` |
+| `sample_data.q` | Sample 2Y/5Y/10Y JGBs, yield curve, portfolio positions |
+| `analytics.q` | Core functions: `price`, `duration`, `convexity`, `dv01`, `parallelShift`, `runScenario` |
+| `run_example.q` | Loads all scripts and runs a +1bp scenario end-to-end |
+| `check_math.q` | Unit tests validating pricing correctness |
+
+### Java (`java/`)
+
+| File | Purpose |
+|------|---------|
+| `JavaOrchestrator.java` | CLI REPL — reads commands, drives the orchestration loop |
+| `ScenarioAgent.java` | LangChain4j + GPT-4 — parses `"run a 5bp shift"` → `0.0005` |
+| `ScenarioScheduler.java` | Invokes `runScenario` in kdb+, logs result to `scenarios` table |
+| `KdbClient.java` | TCP IPC wrapper to kdb+ (default `localhost:5001`) |
+
+### Python (`python/`)
+
+| File | Purpose |
+|------|---------|
+| `app/main.py` | FastAPI root; mounts routers; `/health` endpoint |
+| `app/endpoints.py` | `/explain-risk`, `/interpret-macro`, `/narrative-scenario` |
+| `app/kdb_client.py` | qpython wrapper to query kdb+ from Python |
 
 ## Build & Run
 
 ### kdb+
-Load the scripts from the `q` directory inside a q session:
 
 ```sh
-cd q
-q -q schema.q sample_data.q analytics.q
-```
+# Load and run interactively
+q -q q/schema.q q/sample_data.q q/analytics.q
 
-Use `q check_math.q` to validate functions.
+# Run end-to-end example (+1bp parallel shift)
+q q/run_example.q
+
+# Validate pricing math
+q check_math.q
+```
 
 ### Java
 
-The Java orchestrator now includes a simple console interface powered by LangChain4j. It reads natural-language scenario commands, uses an LLM to extract a parallel shift amount, and invokes the kdb+ scheduler. A record of each request is inserted into the `scenarios` table.
+Requires: Java 21, Maven, kdb+ running on port 5001.
 
-```
+```sh
 cd java
 ./mvnw clean install
-# set OPENAI_API_KEY or another provider if you want real LLM parsing
+export OPENAI_API_KEY=<your-key>
 java -cp target/jgb-risk-engine-0.1.0-SNAPSHOT.jar com.example.risk.JavaOrchestrator
 ```
 
-Once running, type commands like `run a 1bp shift` or `apply five basis points` and press Enter. Type `quit` to exit.
+Type commands such as `run a 1bp shift` or `apply five basis points`. Type `quit` to exit.
 
 ### Python
 
-The Python sidecar provides optional AI/RAG capabilities such as risk explanations, macro interpretations, and scenario narratives. Endpoints are mounted under `/explain-risk`, `/interpret-macro`, and `/narrative-scenario`.
+Requires: Python 3.10+, kdb+ running on port 5001.
 
 ```sh
 cd python
 python -m venv .venv
-.\.venv\Scripts\activate
+source .venv/bin/activate          # Windows: .\.venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8001
 ```
 
-### Python
+Endpoints:
 
-The Python sidecar provides optional AI/RAG capabilities such as risk explanations, macro interpretations, and scenario narratives. Endpoints are mounted under `/explain-risk`, `/interpret-macro`, and `/narrative-scenario`.
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Liveness check |
+| `GET /explain-risk?amount=0.0001` | Runs scenario in kdb+, returns position P&L |
+| `GET /interpret-macro` | Macro RAG lookup (ChromaDB + LangChain) |
+| `GET /narrative-scenario` | BoJ scenario narrative text generation |
 
-```sh
-cd python
-python -m venv .venv
-.\.venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8001
-```
+## Scope (Phase 1)
 
-## Next Steps
-- Flesh out Java IPC logic and scenario scheduler
-- Implement Python RAG endpoints
-- Expand q analytics with full pricing, convexity, DV01 validation
+- Fixed-rate JGBs only
+- Yield curve risk only (no credit, FX, or derivatives)
+- No external market data feeds
+- No production deployment
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Analytics | kdb+/q |
+| Orchestration | Java 21, LangChain4j |
+| LLM | OpenAI GPT-4 |
+| kdb+ IPC (Java) | kx-kdb 3.6.0 |
+| REST service | FastAPI + uvicorn |
+| Vector DB | ChromaDB |
+| kdb+ IPC (Python) | qpython |
+| Testing | JUnit 5, pytest |
