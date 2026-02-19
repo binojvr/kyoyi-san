@@ -1,11 +1,16 @@
 from qpython import qconnection
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load shared .env from project root (two levels up from this file)
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 class KdbClient:
     def __init__(self, host=None, port=None):
-        # read from env or defaults
         self.host = host or os.getenv("KDB_HOST", "localhost")
-        self.port = int(port or os.getenv("KDB_PORT", "5001"))
+        self.port = int(port or os.getenv("KDB_PORT", "5000"))
+        self.db_dir = os.getenv("KDB_DB_DIR")
         self.conn = qconnection.QConnection(host=self.host, port=self.port)
         self.conn.open()
 
